@@ -1,0 +1,68 @@
+package com.example.upload_service.CONTROLLER;
+
+
+import com.example.upload_service.MODEL.Repo;
+import com.example.upload_service.SERVICE.CloneService;
+import com.example.upload_service.SERVICE.S3Service;
+import lombok.AllArgsConstructor;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+
+
+@RestController
+@AllArgsConstructor
+@RequestMapping("/api")
+public class Controller {
+
+
+
+    // call the CloneService Object
+    private final CloneService cloneService;
+    private final S3Service s3Service;
+    /*
+     now we will combine everything into this controller. that is bring the github repo to the disk from the disk get into the  s3-Bucket
+     */
+    @PostMapping("/deploy")
+    public ResponseEntity<?> deployRepo(@RequestBody Repo repo) throws IOException {
+
+        String repoUrl=repo.getRepoUrl();
+
+        // check if the repourl is empty or null
+        if(repoUrl.isEmpty() || repoUrl==null){
+            return ResponseEntity.badRequest().body(Map.of("error","RepoUrl cannot be empty"));
+        }
+
+
+        // generate a random UUID
+        String deploymentId=cloneService.generateUID();
+        try{
+
+            // this get the repo from the cloud to the disk
+            cloneService.cloneRepo(repoUrl,deploymentId);
+            // now we will upload the directory from the disk to the S3 bucket
+            s3Service.uploadDirectory(deploymentId);
+
+            return ResponseEntity.ok().body(Map.of(
+                    "id", deploymentId,
+                    "status", "uploaded",
+                    "message", "Repository cloned and uploaded to S3 successfully"
+            ));
+        }
+        catch(Exception e){
+            return ResponseEntity.internalServerError().body(
+                    Map.of(
+                            "error", "Deployment failed: " + e.getMessage()
+                    )
+            );
+        }
+    }
+}
