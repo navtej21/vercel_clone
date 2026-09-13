@@ -1,6 +1,7 @@
 package com.example.deploy_service.SERVICE;
 
 import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -22,13 +23,15 @@ public class SqsPollerService {
     private final String queueUrl;
     private final SqsClient sqsClient;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final S3DownloadService s3DownloadService;
 
     public SqsPollerService(
             @Value("${aws.region}") String region,
             @Value("${aws.accessKeyId}") String accessKeyId,
             @Value("${aws.secretAccessKey}") String secretAccessKey,
-            @Value("${aws.sqs.queueUrl}") String queueUrl) {
+            @Value("${aws.sqs.queueUrl}") String queueUrl, S3DownloadService s3DownloadService) {
         this.queueUrl = queueUrl;
+        this.s3DownloadService = s3DownloadService;
         this.sqsClient = SqsClient.builder()
                 .region(Region.of(region))
                 .credentialsProvider(StaticCredentialsProvider.create(
@@ -63,12 +66,15 @@ public class SqsPollerService {
                 }
 
                 for (Message message : messages) {
-                    System.out.println("Received Deployment Id: " + message.body());
+                    String deploymentId=message.body();
 
-                    // TODO (next task): actually build the project here, using message.body() as the deployment ID
 
-                    // delete only AFTER processing — this is what makes retries safe if the
-                    // service crashes mid-build (the message becomes visible again after timeout)
+                    String prefix="output/"+deploymentId;
+                    String localDir="./output/"+deploymentId;
+
+
+                    s3DownloadService.downloadDirectory(prefix,localDir);
+
                     sqsClient.deleteMessage(DeleteMessageRequest.builder()
                             .queueUrl(queueUrl)
                             .receiptHandle(message.receiptHandle())
