@@ -24,20 +24,23 @@ public class SqsPollerService {
     private final SqsClient sqsClient;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final S3DownloadService s3DownloadService;
+    private final BuildService buildService;
 
     public SqsPollerService(
             @Value("${aws.region}") String region,
             @Value("${aws.accessKeyId}") String accessKeyId,
             @Value("${aws.secretAccessKey}") String secretAccessKey,
-            @Value("${aws.sqs.queueUrl}") String queueUrl, S3DownloadService s3DownloadService) {
+            @Value("${aws.sqs.queueUrl}") String queueUrl, S3DownloadService s3DownloadService, BuildService buildService) {
         this.queueUrl = queueUrl;
         this.s3DownloadService = s3DownloadService;
+        this.buildService = buildService;
         this.sqsClient = SqsClient.builder()
                 .region(Region.of(region))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKeyId, secretAccessKey)
                 ))
                 .build();
+
     }
 
     // running this on its own dedicated thread so the infinite loop never
@@ -74,6 +77,11 @@ public class SqsPollerService {
 
 
                     s3DownloadService.downloadDirectory(prefix,localDir);
+
+                    boolean buildSuccess= buildService.buildProject(deploymentId);
+
+
+                    System.out.println("Build"+(buildSuccess?"Success":"Failed")+"for deployment id:"+deploymentId);
 
                     sqsClient.deleteMessage(DeleteMessageRequest.builder()
                             .queueUrl(queueUrl)
