@@ -1,13 +1,21 @@
 package com.example.deploy_service.SERVICE;
 
 
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.chrono.ThaiBuddhistEra;
+import java.util.stream.Stream;
 
 
 /*
@@ -22,9 +30,6 @@ is pushed into a s3 bucket
 public class BuildService {
 
     private final String bucketName;
-    private final String region;
-    private final String accessKeyId;
-    private final String secretAccessKey;
 
     private final S3Client s3Client;
 
@@ -32,14 +37,11 @@ public class BuildService {
     public BuildService( @Value("${aws.s3.bucket}") String bucketName,
                          @Value("${aws.region}") String region,
                          @Value("${aws.accessKeyId}") String accessKeyId,
-                         @Value("${aws.secretAccessKey}") String secretAccessKey,
-                         S3Client s3Client){
+                         @Value("${aws.secretAccessKey}") String secretAccessKey
+                         ){
 
         this.bucketName=bucketName;
-        this.region=region;
-        this.accessKeyId=accessKeyId;
-        this.secretAccessKey=secretAccessKey;
-        this.s3Client=s3Client;
+        this.s3Client=S3Client.builder().region(Region.of(region)).credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKeyId,secretAccessKey))).build();
 
     }
 
@@ -76,6 +78,33 @@ public class BuildService {
     /*
     now we are going to push the entire built-client side artificat to the s3bucket of another url
      */
+    public void uploadDirectory(String id) throws IOException{
+
+        Path baseDir=Path.of("./output/"+id+"/dist");
+
+        if(!Files.exists(baseDir)){
+            System.out.println("No Directory Exists");
+            return;
+        }
+        Stream<Path> stream=Files.walk(baseDir);
+
+        try{
+            stream.filter(Files::isRegularFile).forEach(filePath->{
+                // get the relative pathf for each of the file in the artificat
+                Path relativePath=baseDir.relativize(filePath);
+                // relativize the path so that it can be stored in the amazon S3 bucket instance
+                String relativeKey=relativePath.toString().replace("\\","/");
+                // Create a Put Object Request
+                String s3Key="dist/"+id+"/"+relativeKey;
+                uploadSingleFile(s3Key,filePath.toFile());
+            });
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+    }
 
 
 }

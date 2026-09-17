@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -25,6 +26,7 @@ public class SqsPollerService {
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final S3DownloadService s3DownloadService;
     private final BuildService buildService;
+
 
     public SqsPollerService(
             @Value("${aws.region}") String region,
@@ -61,6 +63,8 @@ public class SqsPollerService {
                         .waitTimeSeconds(20)
                         .build();
 
+                GetObjectRequest
+
                 ReceiveMessageResponse receiveMessageResponse = sqsClient.receiveMessage(receiveMessageRequest);
                 List<Message> messages = receiveMessageResponse.messages();
 
@@ -79,6 +83,10 @@ public class SqsPollerService {
                     s3DownloadService.downloadDirectory(prefix,localDir);
 
                     boolean buildSuccess= buildService.buildProject(deploymentId);
+
+                    if(buildSuccess){
+                        buildService.uploadDirectory(deploymentId);
+                    }
 
 
                     System.out.println("Build"+(buildSuccess?"Success":"Failed")+"for deployment id:"+deploymentId);
