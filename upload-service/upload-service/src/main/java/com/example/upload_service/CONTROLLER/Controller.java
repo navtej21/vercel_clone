@@ -2,12 +2,11 @@ package com.example.upload_service.CONTROLLER;
 
 
 import com.example.upload_service.MODEL.Repo;
-import com.example.upload_service.SERVICE.CloneService;
-import com.example.upload_service.SERVICE.S3Service;
-import com.example.upload_service.SERVICE.SqsService;
-import com.example.upload_service.SERVICE.StatusService;
+import com.example.upload_service.SERVICE.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,13 +28,19 @@ public class Controller {
     private final S3Service s3Service;
     private final SqsService sqsService;
     private final StatusService statusService;
+    private final RateLimiterService rateLimiterService;
     /*
      now we will combine everything into this controller. that is bring the github repo to the disk from the disk get into the  s3-Bucket
      */
     @PostMapping("/deploy")
-    public ResponseEntity<?> deployRepo(@RequestBody Repo repo) throws IOException {
+    public ResponseEntity<?> deployRepo(@RequestBody Repo repo, HttpServletRequest request) throws IOException {
 
         String repoUrl=repo.getRepoUrl();
+        String clientId= request.getRemoteAddr();
+
+        if (!rateLimiterService.allowRequest(clientId)) {
+            return ResponseEntity.status(429).body(Map.of("error", "Too many requests. Please wait before deploying again."));
+        }
 
         // check if the repourl is empty or null
         if(repoUrl==null ||  repoUrl.isEmpty()){
