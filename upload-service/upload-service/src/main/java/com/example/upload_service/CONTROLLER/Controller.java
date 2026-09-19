@@ -5,6 +5,7 @@ import com.example.upload_service.MODEL.Repo;
 import com.example.upload_service.SERVICE.CloneService;
 import com.example.upload_service.SERVICE.S3Service;
 import com.example.upload_service.SERVICE.SqsService;
+import com.example.upload_service.SERVICE.StatusService;
 import lombok.AllArgsConstructor;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ public class Controller {
     private final CloneService cloneService;
     private final S3Service s3Service;
     private final SqsService sqsService;
+    private final StatusService statusService;
     /*
      now we will combine everything into this controller. that is bring the github repo to the disk from the disk get into the  s3-Bucket
      */
@@ -55,6 +57,9 @@ public class Controller {
 
             // push the deployment id into the messaging queue
             String messageId= sqsService.sendMessage(deploymentId);
+
+            // we will implement the statusservice function here
+            statusService.updateStatus(deploymentId,"updated");
 
             return ResponseEntity.ok().body(Map.of(
                     "id", deploymentId,
