@@ -9,10 +9,7 @@ import com.example.upload_service.SERVICE.StatusService;
 import lombok.AllArgsConstructor;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -75,5 +72,11 @@ public class Controller {
                     )
             );
         }
+    }
+
+
+    @GetMapping("/status/{id}")
+    public ResponseEntity<String> getStatus(@PathVariable String id){
+        return ResponseEntity.ok().body(statusService.getStatusUpdate(id));
     }
 }

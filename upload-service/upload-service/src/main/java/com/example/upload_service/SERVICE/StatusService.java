@@ -8,6 +8,8 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -47,5 +49,33 @@ public class StatusService {
         PutItemRequest putItemRequest=PutItemRequest.builder().tableName(tableName).item(item).build();
         dynamoDbClient.putItem(putItemRequest);
         System.out.println("Status Updated"+deploymentId+":"+status);
+    }
+
+
+    //we will write a function that checks the status of the deployment id
+
+    public String getStatusUpdate(String deploymentId){
+        Map<String,String> key=new HashMap<>();
+
+        // so we will send a getItemRequest to the amazon dynamodb
+
+
+        GetItemRequest getItemRequest= GetItemRequest.builder()
+                .tableName(tableName)
+                .key(Map.of(
+                        "deploymentKey",
+                        AttributeValue.builder().s(deploymentId).build()
+                ))
+                .build();
+
+
+        GetItemResponse getItemResponse=dynamoDbClient.getItem(getItemRequest);
+
+
+        if(getItemResponse.item().isEmpty()){
+            return "null";
+        }
+
+        return getItemResponse.item().get("status").s();
     }
 }
